@@ -1,0 +1,2110 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="artifact-type" content="tool">
+  <meta name="design-style" content="carbon">
+  <title>학생 AI 도구 만족도 예측 시뮬레이터 — Logistic Regression</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@1.43.0/dist/umd/lucide.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+
+      /* Carbon palette tokens */
+      --background: #ffffff;
+      --surface-container-low: #f4f4f4;
+      --surface-container: #f4f4f4;
+      --surface-container-high: #e0e0e0;
+      --surface-hover: #e8e8e8;
+
+      --on-surface: #161616;
+      --on-surface-variant: #525252;
+
+      --outline: #8d8d8d;
+      --outline-variant: #e0e0e0;
+
+      --primary: #0f62fe;
+      --primary-hover: #0353e9;
+      --on-primary: #ffffff;
+      --primary-container: #d0e2ff;
+      --on-primary-container: #161616;
+      --secondary: #6f6f6f;
+      --tertiary: #198038;
+      --tertiary-container: #defbe6;
+      --error: #da1e28;
+      --error-container: #fff1f1;
+      --on-error: #ffffff;
+
+      /* Data series */
+      --data-1: #0f62fe;
+      --data-2: #6929c4;
+      --data-3: #005d5d;
+      --data-4: #9f1853;
+      --data-context: #8d8d8d;
+      --data-band: #edf5ff;
+
+      /* Fonts (Noto Sans KR first for Korean legibility) */
+      --font-headline: 'Noto Sans KR', 'IBM Plex Sans', sans-serif;
+      --font-body: 'Noto Sans KR', 'IBM Plex Sans', sans-serif;
+      --font-label: 'IBM Plex Mono', 'Noto Sans KR', monospace;
+
+      /* Shape */
+      --rounded: 0.125rem;
+      --rounded-lg: 0.25rem;
+      --rounded-full: 0.75rem;
+
+      /* Style effects */
+      --shadow-1: 0 2px 6px rgb(0 0 0 / 0.1);
+      --shadow-2: 0 4px 12px rgb(0 0 0 / 0.12);
+      --rule: 1px solid var(--outline-variant);
+      --field-rule: 1px solid var(--outline);
+      --indicator: 2px solid var(--primary);
+
+      /* Shared semantic & focus tokens */
+      --positive: #198038;
+      --warning: #b28600;
+      --warning-container: #fcf4d6;
+      --focus: #0f62fe;
+
+      /* Focused Tool type scale */
+      --display-size: clamp(1.625rem, 1.35rem + 1.1vw, 2.125rem);
+      --headline-size: clamp(1.1875rem, 1.05rem + 0.45vw, 1.375rem);
+      --subhead-size: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+      --body-size: clamp(0.9375rem, 0.9rem + 0.15vw, 1rem);
+      --label-size: 0.75rem;
+
+      /* Spacing scale (4pt base) */
+      --space-xs: 0.25rem;
+      --space-sm: 0.5rem;
+      --space-md: 1rem;
+      --space-lg: 1.5rem;
+      --space-xl: 2.5rem;
+      --space-2xl: 4rem;
+      --space-3xl: 6rem;
+
+      /* Motion */
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+      --dur-micro: 120ms;
+      --dur-short: 220ms;
+      --dur-long: 420ms;
+    }
+
+    /* Base reset */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      overflow-x: clip;
+      margin: 0;
+      padding: 0;
+      background-color: var(--background);
+      color: var(--on-surface);
+      font-family: var(--font-body);
+      font-size: var(--body-size);
+      line-height: 1.55;
+      word-break: keep-all;
+      overflow-wrap: break-word;
+      -webkit-font-smoothing: antialiased;
+    }
+    header { position: static !important; }
+    button, input, select, textarea { font-family: inherit; }
+
+    /* Focus rings */
+    :focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    /* Page Grid */
+    .page-grid {
+      display: grid;
+      gap: var(--space-lg);
+      padding: var(--space-lg);
+      max-width: 1200px;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+    .page-grid * { min-width: 0; }
+
+    /* Typography helpers */
+    .mono-label {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      font-weight: 500;
+      color: var(--on-surface-variant);
+      letter-spacing: 0.04em;
+    }
+    .mono-code {
+      font-family: var(--font-label);
+      font-variant-numeric: tabular-nums;
+    }
+    .headline {
+      font-family: var(--font-headline);
+      font-weight: 300;
+      font-size: var(--display-size);
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      margin: 0;
+    }
+    .headline strong {
+      font-weight: 600;
+    }
+    .section-title {
+      font-family: var(--font-headline);
+      font-size: var(--headline-size);
+      font-weight: 600;
+      margin: 0;
+      line-height: 1.3;
+    }
+
+    /* Header */
+    .app-header {
+      border-bottom: var(--rule);
+      padding-bottom: var(--space-lg);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+    }
+    .header-meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-sm);
+    }
+    .header-kicker {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--primary);
+      font-weight: 600;
+    }
+    .header-tag-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-xs);
+    }
+    .carbon-tag {
+      display: inline-flex;
+      align-items: center;
+      height: 24px;
+      padding: 0 var(--space-sm);
+      border-radius: var(--rounded-full);
+      background-color: var(--surface-container);
+      color: var(--on-surface);
+      font-size: var(--label-size);
+      font-family: var(--font-label);
+      font-weight: 400;
+    }
+    .carbon-tag--blue {
+      background-color: var(--primary-container);
+      color: var(--on-primary-container);
+    }
+    .header-subtitle {
+      margin: 0;
+      color: var(--on-surface-variant);
+      max-width: 72ch;
+      font-size: var(--body-size);
+    }
+
+    /* KPI Benchmark Strip */
+    .kpi-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: var(--space-sm);
+    }
+    .kpi-tile {
+      background-color: var(--surface-container);
+      padding: var(--space-md);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+      border-bottom: 2px solid transparent;
+    }
+    .kpi-tile--active {
+      border-bottom: var(--indicator);
+    }
+    .kpi-label {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      color: var(--on-surface-variant);
+      letter-spacing: 0;
+    }
+    .kpi-value {
+      font-family: var(--font-label);
+      font-size: clamp(1.375rem, 1.2rem + 0.5vw, 1.75rem);
+      font-weight: 300;
+      color: var(--on-surface);
+      font-variant-numeric: tabular-nums;
+      line-height: 1.2;
+    }
+    .kpi-sub {
+      font-size: var(--label-size);
+      color: var(--on-surface-variant);
+    }
+
+    /* Simulator Main Layout (Asymmetric 5 : 7) */
+    .simulator-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+      gap: var(--space-lg);
+      align-items: start;
+    }
+
+    .panel {
+      background-color: var(--surface-container);
+      padding: var(--space-lg);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-lg);
+    }
+    .panel-header {
+      border-bottom: var(--rule);
+      padding-bottom: var(--space-sm);
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: var(--space-sm);
+    }
+    .panel-header-sub {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      color: var(--on-surface-variant);
+    }
+
+    /* Presets */
+    .preset-group {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+    }
+    .preset-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-xs);
+    }
+    .preset-btn {
+      min-height: 36px;
+      padding: var(--space-xs) var(--space-sm);
+      background-color: var(--background);
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--rounded);
+      color: var(--on-surface);
+      font-size: var(--label-size);
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color var(--dur-micro) var(--ease-out), border-color var(--dur-micro) var(--ease-out);
+    }
+    .preset-btn:hover {
+      background-color: var(--surface-container-high);
+      border-color: var(--outline);
+    }
+    .preset-btn.is-selected {
+      background-color: var(--primary-container);
+      border-color: var(--primary);
+      color: var(--on-primary-container);
+    }
+
+    /* Form Controls */
+    .control-stack {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-lg);
+    }
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+    }
+    .field-label-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: var(--space-sm);
+    }
+    .field-label {
+      font-size: var(--label-size);
+      font-weight: 600;
+      color: var(--on-surface);
+    }
+    .field-stat-note {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      color: var(--on-surface-variant);
+    }
+    .field-helper {
+      font-size: var(--label-size);
+      color: var(--on-surface-variant);
+      margin: 0;
+      line-height: 1.45;
+    }
+
+    /* Segmented Toggle */
+    .segmented-control {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1px;
+      background-color: var(--outline-variant);
+      border: 1px solid var(--outline-variant);
+    }
+    .seg-btn {
+      min-height: 44px;
+      padding: var(--space-sm) var(--space-md);
+      background-color: var(--background);
+      color: var(--on-surface);
+      border: none;
+      font-size: var(--body-size);
+      font-weight: 400;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: background-color var(--dur-micro) var(--ease-out);
+    }
+    .seg-btn:hover {
+      background-color: var(--surface-container-high);
+    }
+    .seg-btn.is-active {
+      background-color: var(--primary-container);
+      color: var(--on-primary-container);
+      font-weight: 600;
+      box-shadow: inset 0 -2px 0 var(--primary);
+    }
+    .seg-sub {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      color: var(--on-surface-variant);
+    }
+
+    /* Select input */
+    .carbon-select-wrap {
+      position: relative;
+      display: block;
+    }
+    .carbon-select {
+      width: 100%;
+      height: 44px;
+      background-color: var(--background);
+      color: var(--on-surface);
+      border: none;
+      border-bottom: var(--field-rule);
+      padding: 0 var(--space-xl) 0 var(--space-md);
+      font-size: var(--body-size);
+      border-radius: 0;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      transition: background-color var(--dur-micro) var(--ease-out);
+    }
+    .carbon-select:hover {
+      background-color: var(--surface-hover);
+    }
+    .select-chevron {
+      position: absolute;
+      right: var(--space-md);
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      color: var(--on-surface);
+      display: flex;
+      align-items: center;
+    }
+
+    /* Slider + Number pair */
+    .slider-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 76px;
+      gap: var(--space-md);
+      align-items: end;
+    }
+    .slider-track-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+    }
+    .carbon-range {
+      width: 100%;
+      height: 44px;
+      margin: 0;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+    .range-ticks {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      color: var(--on-surface-variant);
+      padding: 0 2px;
+    }
+    .carbon-number {
+      height: 44px;
+      width: 100%;
+      background-color: var(--background);
+      color: var(--on-surface);
+      border: none;
+      border-bottom: var(--field-rule);
+      padding: 0 var(--space-sm);
+      font-family: var(--font-label);
+      font-size: var(--subhead-size);
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      border-radius: 0;
+    }
+
+    /* Constant Excluded Variable Strip */
+    .notice-strip {
+      background-color: var(--surface-container-high);
+      border-left: 3px solid var(--secondary);
+      padding: var(--space-sm) var(--space-md);
+      display: flex;
+      gap: var(--space-sm);
+      align-items: flex-start;
+      font-size: var(--label-size);
+      color: var(--on-surface);
+      line-height: 1.5;
+    }
+    .notice-strip--blue {
+      background-color: var(--background);
+      border-left: 3px solid var(--primary);
+    }
+    .notice-strip--warning {
+      background-color: var(--warning-container);
+      border-left: 3px solid var(--warning);
+    }
+    .notice-icon {
+      flex-shrink: 0;
+      margin-top: 2px;
+      display: inline-flex;
+    }
+
+    /* Action Row */
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-sm);
+      align-items: center;
+      padding-top: var(--space-xs);
+    }
+    .btn-primary {
+      min-height: 48px;
+      flex: 1 1 200px;
+      padding: var(--space-sm) var(--space-lg);
+      background-color: var(--primary);
+      color: var(--on-primary);
+      border: none;
+      border-radius: var(--rounded);
+      font-size: var(--body-size);
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-sm);
+      transition: background-color var(--dur-micro) var(--ease-out);
+    }
+    .btn-primary:hover {
+      background-color: var(--primary-hover);
+    }
+    .btn-secondary {
+      min-height: 48px;
+      padding: var(--space-sm) var(--space-md);
+      background-color: var(--background);
+      color: var(--primary);
+      border: 1px solid var(--primary);
+      border-radius: var(--rounded);
+      font-size: var(--body-size);
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      transition: background-color var(--dur-micro) var(--ease-out);
+    }
+    .btn-secondary:hover {
+      background-color: var(--primary-container);
+    }
+    .btn-compact {
+      min-height: 36px;
+      padding: var(--space-xs) var(--space-md);
+      font-size: var(--label-size);
+    }
+
+    .pending-banner {
+      display: none;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      background-color: var(--warning-container);
+      border-left: 3px solid var(--warning);
+      font-size: var(--label-size);
+      color: var(--on-surface);
+    }
+    .pending-banner.is-visible {
+      display: flex;
+    }
+
+    /* Output Panel */
+    .verdict-card {
+      background-color: var(--background);
+      padding: var(--space-lg);
+      border-left: 4px solid var(--primary);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: var(--space-md);
+      align-items: center;
+    }
+    .verdict-card.is-high {
+      border-left-color: var(--tertiary);
+    }
+    .verdict-card.is-standard {
+      border-left-color: var(--secondary);
+    }
+    .verdict-eyebrow {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      color: var(--on-surface-variant);
+      margin-bottom: var(--space-xs);
+    }
+    .verdict-status-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    .verdict-title {
+      font-size: clamp(1.375rem, 1.2rem + 0.6vw, 1.75rem);
+      font-weight: 600;
+      margin: 0;
+      line-height: 1.2;
+    }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      height: 26px;
+      padding: 0 var(--space-sm);
+      border-radius: var(--rounded-full);
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      font-weight: 600;
+    }
+    .status-pill--high {
+      background-color: var(--tertiary-container);
+      color: var(--tertiary);
+    }
+    .status-pill--standard {
+      background-color: var(--surface-container-high);
+      color: var(--on-surface);
+    }
+    .verdict-prob-block {
+      text-align: right;
+    }
+    .verdict-prob-value {
+      font-family: var(--font-label);
+      font-size: clamp(2rem, 1.6rem + 1.2vw, 2.75rem);
+      font-weight: 300;
+      line-height: 1.05;
+      color: var(--on-surface);
+      font-variant-numeric: tabular-nums;
+    }
+    .verdict-prob-caption {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      color: var(--on-surface-variant);
+    }
+
+    /* Metrics Trio inside Output */
+    .output-metrics-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--space-sm);
+    }
+    .metric-box {
+      background-color: var(--background);
+      padding: var(--space-md);
+      border-top: var(--rule);
+    }
+    .metric-box-label {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      color: var(--on-surface-variant);
+    }
+    .metric-box-val {
+      font-family: var(--font-label);
+      font-size: 1.25rem;
+      font-weight: 400;
+      font-variant-numeric: tabular-nums;
+      margin-top: var(--space-xs);
+      color: var(--on-surface);
+    }
+    .metric-box-note {
+      font-size: var(--label-size);
+      color: var(--on-surface-variant);
+      margin-top: 2px;
+    }
+
+    /* Gauge Container */
+    .gauge-card {
+      background-color: var(--background);
+      padding: var(--space-md);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+    }
+    .gauge-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: var(--space-sm);
+    }
+    .gauge-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-md);
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      color: var(--on-surface-variant);
+    }
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .legend-swatch {
+      width: 10px;
+      height: 10px;
+      display: inline-block;
+    }
+    .legend-swatch--primary { background-color: var(--data-1); }
+    .legend-swatch--band { background-color: var(--primary-container); }
+    .legend-swatch--base { background-color: var(--data-2); }
+    .legend-swatch--thresh { background-color: var(--on-surface); }
+
+    .gauge-svg-wrap {
+      width: 100%;
+      min-height: 195px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .gauge-svg {
+      width: 100%;
+      max-width: 480px;
+      height: auto;
+      display: block;
+    }
+
+    /* Feature Breakdown */
+    .breakdown-card {
+      background-color: var(--background);
+      padding: var(--space-md);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+    .formula-box {
+      background-color: var(--surface-container-low);
+      padding: var(--space-sm) var(--space-md);
+      border-left: 2px solid var(--primary);
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      color: var(--on-surface);
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .influence-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+    }
+    .influence-row {
+      display: grid;
+      grid-template-columns: minmax(130px, 1.3fr) minmax(0, 1.8fr) 90px;
+      gap: var(--space-sm);
+      align-items: center;
+      padding: var(--space-xs) 0;
+      border-top: var(--rule);
+    }
+    .influence-row:first-child {
+      border-top: none;
+    }
+    .inf-name {
+      font-size: var(--label-size);
+      font-weight: 600;
+      color: var(--on-surface);
+    }
+    .inf-val-sub {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      color: var(--on-surface-variant);
+    }
+    .inf-bar-track {
+      position: relative;
+      height: 18px;
+      background-color: var(--surface-container-low);
+      display: flex;
+      align-items: center;
+    }
+    .inf-zero-line {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background-color: var(--outline);
+    }
+    .inf-bar-fill {
+      position: absolute;
+      top: 3px;
+      bottom: 3px;
+      transition: width var(--dur-short) var(--ease-out), left var(--dur-short) var(--ease-out);
+    }
+    .inf-bar-fill--pos {
+      background-color: var(--data-1);
+    }
+    .inf-bar-fill--neg {
+      background-color: var(--data-2);
+    }
+    .inf-bar-fill--zero {
+      background-color: var(--data-context);
+    }
+    .inf-numbers {
+      text-align: right;
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Threshold disclosure */
+    .advanced-details {
+      border-top: var(--rule);
+      padding-top: var(--space-sm);
+    }
+    .advanced-summary {
+      cursor: pointer;
+      font-size: var(--label-size);
+      font-weight: 600;
+      color: var(--primary);
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 36px;
+    }
+    .advanced-summary::-webkit-details-marker { display: none; }
+    .advanced-body {
+      padding-top: var(--space-sm);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+    }
+
+    /* Lower Diagnostic & Scenario Grid */
+    .lower-section {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-lg);
+      border-top: var(--rule);
+      padding-top: var(--space-lg);
+    }
+    .section-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: var(--space-sm);
+      border-bottom: var(--rule);
+      padding-bottom: var(--space-sm);
+    }
+
+    /* Tables */
+    .table-scroll {
+      width: 100%;
+      overflow-x: auto;
+    }
+    .carbon-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--label-size);
+    }
+    .carbon-table th {
+      background-color: var(--surface-container-high);
+      color: var(--on-surface);
+      font-family: var(--font-label);
+      font-weight: 600;
+      text-align: left;
+      padding: var(--space-sm) var(--space-md);
+      white-space: nowrap;
+    }
+    .carbon-table td {
+      padding: var(--space-sm) var(--space-md);
+      border-top: var(--rule);
+      color: var(--on-surface);
+      vertical-align: middle;
+    }
+    .carbon-table tbody tr:nth-child(even) {
+      background-color: var(--surface-container-low);
+    }
+    .carbon-table .num-col {
+      text-align: right;
+      font-family: var(--font-label);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Model Comparison 2-column grid */
+    .diagnostics-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+      gap: var(--space-lg);
+      align-items: start;
+    }
+
+    .matrix-card {
+      background-color: var(--surface-container);
+      padding: var(--space-md);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+    .matrix-tabs {
+      display: flex;
+      border-bottom: var(--rule);
+      gap: var(--space-md);
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      padding: var(--space-sm) 0;
+      min-height: 44px;
+      font-size: var(--label-size);
+      font-weight: 500;
+      color: var(--on-surface-variant);
+      cursor: pointer;
+    }
+    .tab-btn.is-active {
+      color: var(--on-surface);
+      font-weight: 600;
+      border-bottom: var(--indicator);
+    }
+    .cm-grid {
+      display: grid;
+      grid-template-columns: 96px repeat(2, minmax(0, 1fr));
+      gap: 2px;
+      background-color: var(--outline-variant);
+    }
+    .cm-cell {
+      background-color: var(--background);
+      padding: var(--space-sm);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px;
+    }
+    .cm-head {
+      background-color: var(--surface-container-high);
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      font-weight: 600;
+      text-align: center;
+    }
+    .cm-row-head {
+      background-color: var(--surface-container-low);
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      font-weight: 600;
+    }
+    .cm-tp {
+      background-color: var(--primary-container);
+    }
+    .cm-num {
+      font-family: var(--font-label);
+      font-size: 1.25rem;
+      font-weight: 400;
+      font-variant-numeric: tabular-nums;
+    }
+    .cm-tag {
+      font-family: var(--font-label);
+      font-size: 0.6875rem;
+      color: var(--on-surface-variant);
+    }
+
+    /* Methodology & Limits List */
+    .limits-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+      gap: var(--space-md);
+    }
+    .limit-item {
+      background-color: var(--surface-container);
+      padding: var(--space-md);
+      border-left: 3px solid var(--outline);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+    }
+    .limit-title {
+      font-size: var(--body-size);
+      font-weight: 600;
+      margin: 0;
+    }
+    .limit-desc {
+      font-size: var(--label-size);
+      color: var(--on-surface-variant);
+      margin: 0;
+      line-height: 1.55;
+    }
+
+    /* Footer */
+    .app-footer {
+      border-top: var(--rule);
+      padding-top: var(--space-md);
+      padding-bottom: var(--space-lg);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: var(--space-sm);
+      font-size: var(--label-size);
+      color: var(--on-surface-variant);
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 960px) {
+      .kpi-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .simulator-grid,
+      .diagnostics-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .page-grid {
+        padding: var(--space-md);
+        gap: var(--space-md);
+      }
+      .kpi-strip {
+        grid-template-columns: 1fr;
+      }
+      .output-metrics-row {
+        grid-template-columns: 1fr;
+      }
+      .verdict-card {
+        grid-template-columns: 1fr;
+      }
+      .verdict-prob-block {
+        text-align: left;
+      }
+      .influence-row {
+        grid-template-columns: 1fr;
+        gap: var(--space-xs);
+      }
+      .inf-numbers {
+        text-align: left;
+      }
+      .cm-grid {
+        grid-template-columns: 72px repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-grid">
+
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-meta-row">
+        <span class="header-kicker">Global Student AI Satisfaction Predictor</span>
+        <div class="header-tag-group">
+          <span class="carbon-tag carbon-tag--blue">Logistic Regression</span>
+          <span class="carbon-tag">N = 330 (Train 264 / Test 66)</span>
+          <span class="carbon-tag">Target: Useful Score ≥ 8.00</span>
+        </div>
+      </div>
+      <h1 class="headline">학생 AI 도구 만족도 <strong>예측 시뮬레이터</strong></h1>
+      <p class="header-subtitle">
+        Global AI Tools Students Use 설문 표본(유효 330명) 기반 이항 로지스틱 회귀(Binary Logistic Regression) 모형을 통해 학생 프로필별 고만족 확률, 로그오즈(Logit), 변수 기여도를 산출합니다.
+      </p>
+    </header>
+
+    <!-- Benchmark KPI Strip -->
+    <section class="kpi-strip" aria-label="모형 테스트 성능 요약">
+      <div class="kpi-tile kpi-tile--active">
+        <span class="kpi-label">로지스틱 테스트 정확도 (N=66)</span>
+        <span class="kpi-value">65.2%</span>
+        <span class="kpi-sub">43/66 적중 · 기준선(59.1%) 대비 +6.1%p</span>
+      </div>
+      <div class="kpi-tile">
+        <span class="kpi-label">민감도 / 특이도</span>
+        <span class="kpi-value">89.7% / 29.6%</span>
+        <span class="kpi-sub">고만족 예측 54/66명 치우침 반영</span>
+      </div>
+      <div class="kpi-tile">
+        <span class="kpi-label">기저 모형 적합도 (Null AIC / BIC)</span>
+        <span class="kpi-value">359.93 / 363.50</span>
+        <span class="kpi-sub">변수 추가 시 AIC·BIC 개선 없음</span>
+      </div>
+      <div class="kpi-tile">
+        <span class="kpi-label">다변량 유의성 (p-value)</span>
+        <span class="kpi-value">모든 변수 p &gt; 0.05</span>
+        <span class="kpi-sub">최소 p: AI 개수 0.148 · 성별 0.156</span>
+      </div>
+    </section>
+
+    <!-- Main Simulator Grid -->
+    <main class="simulator-grid">
+
+      <!-- Left Column: Input Controls -->
+      <section class="panel" aria-label="예측 입력 조건 설정">
+        <div class="panel-header">
+          <h2 class="section-title">입력 변수 설정</h2>
+          <span class="panel-header-sub">4 Active Features</span>
+        </div>
+
+        <!-- Scenario Presets -->
+        <div class="preset-group">
+          <span class="field-label">대표 프로필 프리셋 (Presets)</span>
+          <div class="preset-row">
+            <button type="button" class="preset-btn is-selected" data-preset="median" onclick="applyPreset('median')">중앙값 기준 표본</button>
+            <button type="button" class="preset-btn" data-preset="heavy" onclick="applyPreset('heavy')">고활용 고학년 (북미)</button>
+            <button type="button" class="preset-btn" data-preset="light" onclick="applyPreset('light')">저활용 저학년 (유럽)</button>
+            <button type="button" class="preset-btn" data-preset="oceania" onclick="applyPreset('oceania')">다중 도구 (오세아니아)</button>
+          </div>
+        </div>
+
+        <div class="control-stack">
+          <!-- 1. Gender -->
+          <div class="field-group">
+            <div class="field-label-row">
+              <label class="field-label">성별 (Gender)</label>
+              <span class="field-stat-note">χ² p=0.024 · Logistic p=0.156</span>
+            </div>
+            <div class="segmented-control" role="group" aria-label="성별 선택">
+              <button type="button" id="btn-gender-female" class="seg-btn is-active" onclick="setGender('Female')">
+                <span>Female (여성)</span>
+                <span class="seg-sub">Ref</span>
+              </button>
+              <button type="button" id="btn-gender-male" class="seg-btn" onclick="setGender('Male')">
+                <span>Male (남성)</span>
+                <span class="seg-sub">Δz +0.30</span>
+              </button>
+            </div>
+            <p class="field-helper">Non-binary 응답은 표본 수 부족에 따른 통계적 불안정으로 모형에서 제외되었습니다.</p>
+          </div>
+
+          <!-- 2. Continent -->
+          <div class="field-group">
+            <div class="field-label-row">
+              <label for="select-continent" class="field-label">대륙권 (Continent)</label>
+              <span class="field-stat-note">ANOVA F=0.956, p=0.445</span>
+            </div>
+            <div class="carbon-select-wrap">
+              <select id="select-continent" class="carbon-select" onchange="onInputChange()">
+                <option value="Asia">Asia (아시아) — 기준 범주</option>
+                <option value="Africa">Africa (아프리카)</option>
+                <option value="Europe">Europe (유럽)</option>
+                <option value="North America">North America (북미)</option>
+                <option value="Oceania">Oceania (오세아니아)</option>
+                <option value="South America">South America (남미)</option>
+              </select>
+              <span class="select-chevron" aria-hidden="true">
+                <i data-lucide="chevron-down" width="16" height="16"></i>
+              </span>
+            </div>
+            <p class="field-helper">일원분산분석 결과 대륙 간 평균 유용성 점수 차이는 통계적으로 유의하지 않습니다(p=0.445).</p>
+          </div>
+
+          <!-- 3. Grade Level -->
+          <div class="field-group">
+            <div class="field-label-row">
+              <label class="field-label">학년 수준 (Grade Level)</label>
+              <span class="field-stat-note">Logistic p &gt; 0.05</span>
+            </div>
+            <div class="segmented-control" role="group" aria-label="학년 수준 선택">
+              <button type="button" id="btn-grade-low" class="seg-btn" onclick="setGrade('Low')">
+                <span>Low (저학년)</span>
+                <span class="seg-sub">Ref</span>
+              </button>
+              <button type="button" id="btn-grade-high" class="seg-btn is-active" onclick="setGrade('High')">
+                <span>High (고학년)</span>
+                <span class="seg-sub">Δz +0.18</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 4. Total AI Tools Used -->
+          <div class="field-group">
+            <div class="field-label-row">
+              <label for="slider-tools" class="field-label">총 활용 AI 도구 개수 (Total AI Tools Used)</label>
+              <span class="field-stat-note">중앙값 2.0개 · Logistic p=0.148</span>
+            </div>
+            <div class="slider-row">
+              <div class="slider-track-wrap">
+                <input type="range" id="slider-tools" class="carbon-range" min="0" max="8" step="1" value="2" oninput="syncToolsFromSlider(this.value)">
+                <div class="range-ticks" aria-hidden="true">
+                  <span>0</span><span>1</span><span>2 (중앙값)</span><span>4</span><span>6</span><span>8</span>
+                </div>
+              </div>
+              <input type="number" id="number-tools" class="carbon-number" min="0" max="8" step="1" value="2" aria-label="총 활용 AI 도구 개수 입력" oninput="syncToolsFromNumber(this.value)">
+            </div>
+            <p class="field-helper">8개 주요 AI 도구 사용 여부를 합산한 파생 변수입니다. 단독 카이제곱 p=0.061(경계선).</p>
+          </div>
+
+          <!-- Excluded Variable Notice -->
+          <div class="notice-strip" role="note">
+            <span class="notice-icon" aria-hidden="true">
+              <i data-lucide="info" width="16" height="16"></i>
+            </span>
+            <div>
+              <strong>제외된 변수: 학업 목적 사용 (uses_ai_for_study)</strong><br>
+              유효 표본 330명 전원이 <code>True</code>(100%)로 응답한 상수 변수입니다. 변별력이 없어 모형에서 제외되었습니다 (χ²=0, p=1.0).
+            </div>
+          </div>
+
+          <!-- Threshold Disclosure -->
+          <details class="advanced-details">
+            <summary class="advanced-summary">
+              <span>고급 설정: 분류 임계값(Threshold) 조정 탐색</span>
+              <span class="mono-code" id="threshold-summary-val">θ = 0.50</span>
+            </summary>
+            <div class="advanced-body">
+              <div class="slider-row">
+                <div class="slider-track-wrap">
+                  <input type="range" id="slider-threshold" class="carbon-range" min="0.35" max="0.75" step="0.01" value="0.50" oninput="syncThresholdFromSlider(this.value)">
+                  <div class="range-ticks" aria-hidden="true">
+                    <span>0.35</span><span>0.50 (기본)</span><span>0.59 (기준선)</span><span>0.75</span>
+                  </div>
+                </div>
+                <input type="number" id="number-threshold" class="carbon-number" min="0.35" max="0.75" step="0.01" value="0.50" aria-label="분류 임계값 입력" oninput="syncThresholdFromNumber(this.value)">
+              </div>
+              <p class="field-helper">로지스틱 회귀는 기본 임계값(0.50)에서 고만족 편향으로 특이도가 29.6%에 머뭅니다. 임계값 상향 시 특이도 개선 효과를 탐색할 수 있습니다.</p>
+            </div>
+          </details>
+        </div>
+
+        <!-- Pending state notice -->
+        <div id="pending-banner" class="pending-banner" role="status" aria-live="polite">
+          <span class="notice-icon" aria-hidden="true">
+            <i data-lucide="alert-circle" width="16" height="16"></i>
+          </span>
+          <span>입력 조건이 변경되었습니다. 아래 <strong>예측 실행</strong> 버튼을 눌러 확률과 기여도를 갱신하세요.</span>
+        </div>
+
+        <!-- Primary Action Buttons -->
+        <div class="action-row">
+          <button type="button" id="btn-predict" class="btn-primary" onclick="runPrediction(true)">
+            <span>만족도 예측 실행 (Predict)</span>
+            <i data-lucide="arrow-right" width="18" height="18" aria-hidden="true"></i>
+          </button>
+          <button type="button" class="btn-secondary" onclick="resetInputs()">
+            <i data-lucide="rotate-ccw" width="16" height="16" aria-hidden="true"></i>
+            <span>초기화</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Right Column: Prediction Output & Visualizations -->
+      <section class="panel" aria-label="로지스틱 회귀 예측 결과">
+        <div class="panel-header">
+          <h2 class="section-title">예측 결과 및 확률 분석</h2>
+          <span class="panel-header-sub" id="applied-profile-label">Female · Asia · High · 2개</span>
+        </div>
+
+        <!-- Verdict Card -->
+        <div id="verdict-card" class="verdict-card is-high" aria-live="polite">
+          <div>
+            <div class="verdict-eyebrow">PREDICTED SATISFACTION STATUS</div>
+            <div class="verdict-status-row">
+              <h3 id="verdict-title" class="verdict-title">고만족</h3>
+              <span id="verdict-pill" class="status-pill status-pill--high">유용성 ≥ 8.00점 예측</span>
+            </div>
+            <p id="verdict-desc" class="field-helper" style="margin-top: var(--space-xs);">
+              추정 확률이 분류 임계값(50.0%) 이상이므로 '고만족' 집단으로 분류되었습니다.
+            </p>
+          </div>
+          <div class="verdict-prob-block">
+            <div id="verdict-prob" class="verdict-prob-value">53.7%</div>
+            <div class="verdict-prob-caption">P(고만족 = 1 | X)</div>
+          </div>
+        </div>
+
+        <!-- Core Logistic Metrics Trio -->
+        <div class="output-metrics-row">
+          <div class="metric-box">
+            <div class="metric-box-label">선형 예측자 (Logit z)</div>
+            <div id="metric-logit" class="metric-box-val">+0.150</div>
+            <div class="metric-box-note">ln(p / (1 − p))</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-box-label">오즈 (Odds)</div>
+            <div id="metric-odds" class="metric-box-val">1.162 : 1</div>
+            <div class="metric-box-note">exp(z)</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-box-label">기준선 대비 차이</div>
+            <div id="metric-delta" class="metric-box-val">-5.4%p</div>
+            <div class="metric-box-note">전체 고만족 비율 59.1% 대비</div>
+          </div>
+        </div>
+
+        <!-- Probability Gauge -->
+        <div class="gauge-card">
+          <div class="gauge-header">
+            <h3 class="section-title" style="font-size: var(--subhead-size);">고만족 예측 확률 게이지</h3>
+            <div class="gauge-legend">
+              <span class="legend-item"><span class="legend-swatch legend-swatch--primary"></span>추정 확률</span>
+              <span class="legend-item"><span class="legend-swatch legend-swatch--band"></span>테스트 밀집 구간 (38–76%)</span>
+              <span class="legend-item"><span class="legend-swatch legend-swatch--thresh"></span>임계값</span>
+              <span class="legend-item"><span class="legend-swatch legend-swatch--base"></span>기준선 (59.1%)</span>
+            </div>
+          </div>
+          <div class="gauge-svg-wrap">
+            <svg id="probability-gauge" class="gauge-svg" viewBox="0 0 420 220" role="img" aria-label="고만족 예측 확률 게이지 차트">
+              <!-- Track Background (0% to 100%, semicircular arc center 210, 185, radius 145) -->
+              <path d="M 65 185 A 145 145 0 0 1 355 185" fill="none" stroke="var(--surface-container-high)" stroke-width="22" stroke-linecap="butt" />
+              <!-- Test Set Cluster Band (0.38 to 0.76) -->
+              <path id="gauge-cluster-band" d="" fill="none" stroke="var(--primary-container)" stroke-width="22" stroke-linecap="butt" />
+              <!-- Active Value Arc -->
+              <path id="gauge-value-arc" d="" fill="none" stroke="var(--data-1)" stroke-width="22" stroke-linecap="butt" />
+              <!-- Baseline 59.1% Tick -->
+              <line id="gauge-baseline-tick" x1="210" y1="40" x2="210" y2="25" stroke="var(--data-2)" stroke-width="2.5" />
+              <text id="gauge-baseline-text" x="210" y="18" text-anchor="middle" font-family="var(--font-label)" font-size="11" fill="var(--data-2)">59.1% 기준선</text>
+              <!-- Threshold Tick -->
+              <line id="gauge-threshold-tick" x1="210" y1="28" x2="210" y2="54" stroke="var(--on-surface)" stroke-width="2.5" />
+              <text id="gauge-threshold-text" x="210" y="20" text-anchor="middle" font-family="var(--font-label)" font-size="11" font-weight="600" fill="var(--on-surface)">θ 50%</text>
+              <!-- Needle -->
+              <line id="gauge-needle" x1="210" y1="185" x2="210" y2="55" stroke="var(--on-surface)" stroke-width="2.5" />
+              <circle cx="210" cy="185" r="6" fill="var(--on-surface)" />
+              <!-- Min/Max Labels -->
+              <text x="65" y="206" text-anchor="middle" font-family="var(--font-label)" font-size="11" fill="var(--on-surface-variant)">0%</text>
+              <text x="210" y="162" text-anchor="middle" font-family="var(--font-label)" font-size="22" font-weight="500" fill="var(--on-surface)" id="gauge-center-pct">53.7%</text>
+              <text x="210" y="177" text-anchor="middle" font-family="var(--font-label)" font-size="11" fill="var(--on-surface-variant)">Predicted Probability</text>
+              <text x="355" y="206" text-anchor="middle" font-family="var(--font-label)" font-size="11" fill="var(--on-surface-variant)">100%</text>
+            </svg>
+          </div>
+          <p class="field-helper">
+            로지스틱 회귀의 테스트 표본(66명) 예측 확률은 주로 <strong>0.38 ~ 0.76</strong> 구간에 집중 분포하며, 전체 표본 고만족 비율(59.1%)의 영향으로 0.50 이상으로 예측되는 경향이 있습니다.
+          </p>
+        </div>
+
+        <!-- Feature Influence Breakdown -->
+        <div class="breakdown-card">
+          <div class="panel-header" style="padding-bottom: var(--space-xs);">
+            <h3 class="section-title" style="font-size: var(--subhead-size);">변수별 로그오즈 기여도 분해 (Logit Breakdown)</h3>
+            <span class="mono-label">Δz vs Intercept</span>
+          </div>
+          <div id="logit-formula-box" class="formula-box">
+            z = -0.250 + 0.000(Gender) + 0.000(Continent) + 0.180(Grade) + 0.220(AI Tools) = +0.150
+          </div>
+          <div id="influence-list" class="influence-list">
+            <!-- Populated by JS -->
+          </div>
+          <div class="notice-strip notice-strip--blue" role="note">
+            <span class="notice-icon" aria-hidden="true">
+              <i data-lucide="microscope" width="16" height="16"></i>
+            </span>
+            <div>
+              <strong>통계적 해석 주의 (p &gt; 0.05):</strong> 다변량 로지스틱 모형에서 8개 입력 변수 모두 p &gt; 0.05로 통계적 유의성을 확보하지 못했으며(AI 개수 p=0.148, 성별 p=0.156), 변수 추가가 기저 모형 AIC/BIC를 개선하지 못했습니다. 위 가중치는 테스트 분포(0.38–0.76)와 탐색적 패턴을 재현하기 위한 보정 파라미터입니다.
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Lower Section: Scenario Comparison Log -->
+    <section class="lower-section" aria-label="시나리오 비교 로그">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">예측 시나리오 비교 로그</h2>
+          <p class="field-helper" style="margin-top: 2px;">예측 실행 시 프로필별 확률·Logit 결과를 누적 기록하여 조건 변화에 따른 민감도를 비교합니다.</p>
+        </div>
+        <div class="action-row" style="padding-top: 0;">
+          <button type="button" class="btn-secondary btn-compact" onclick="exportHistoryCSV()">
+            <i data-lucide="download" width="14" height="14" aria-hidden="true"></i>
+            <span>CSV 내보내기</span>
+          </button>
+          <button type="button" id="btn-clear-history" class="btn-secondary btn-compact" onclick="clearHistory(this)">
+            <i data-lucide="trash-2" width="14" height="14" aria-hidden="true"></i>
+            <span>로그 비우기</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-scroll">
+        <table class="carbon-table" aria-label="시나리오 예측 비교 표">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>성별</th>
+              <th>대륙권</th>
+              <th>학년</th>
+              <th class="num-col">AI 개수</th>
+              <th class="num-col">Logit (z)</th>
+              <th class="num-col">추정 확률</th>
+              <th class="num-col">임계값</th>
+              <th>예측 판정</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody">
+            <!-- Populated by JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Lower Section: Test Performance Comparison & Methodological Context -->
+    <section class="lower-section" aria-label="모형 성능 비교 및 한계">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">테스트 표본(N=66) 모형 성능 비교 및 한계</h2>
+          <p class="field-helper" style="margin-top: 2px;">80:20 층화 분할(random_state=42)로 분리된 미관측 테스트 데이터 66명 기준 평가 결과입니다.</p>
+        </div>
+      </div>
+
+      <div class="diagnostics-grid">
+        <!-- Performance Table + Limitations -->
+        <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+          <div class="table-scroll">
+            <table class="carbon-table" aria-label="모델별 테스트 성능 비교표">
+              <thead>
+                <tr>
+                  <th>모형 / 기준선</th>
+                  <th class="num-col">정확도 (Accuracy)</th>
+                  <th class="num-col">민감도 (Sensitivity)</th>
+                  <th class="num-col">특이도 (Specificity)</th>
+                  <th>선정 역할</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="background-color: var(--primary-container);">
+                  <td><strong>로지스틱 회귀 (Logistic)</strong></td>
+                  <td class="num-col"><strong>65.2%</strong> (43/66)</td>
+                  <td class="num-col"><strong>89.7%</strong> (35/39)</td>
+                  <td class="num-col"><strong>29.6%</strong> (8/27)</td>
+                  <td>최종 선정 모형 (비교 우위)</td>
+                </tr>
+                <tr>
+                  <td>분류나무 (Decision Tree, depth=3)</td>
+                  <td class="num-col">54.5% (36/66)</td>
+                  <td class="num-col">82.1% (32/39)</td>
+                  <td class="num-col">14.8% (4/27)</td>
+                  <td>조건 조합 탐색 보조 도구</td>
+                </tr>
+                <tr>
+                  <td>기준선 (전부 '고만족' 예측)</td>
+                  <td class="num-col">59.1% (39/66)</td>
+                  <td class="num-col">100.0% (39/39)</td>
+                  <td class="num-col">0.0% (0/27)</td>
+                  <td>최소 변별력 검증 기준</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="limits-grid">
+            <article class="limit-item">
+              <h3 class="limit-title">1. 약한 예측 신호와 기저 모형 우위</h3>
+              <p class="limit-desc">
+                선형회귀 설명력(R²)이 0.0414로 낮아 이진 분류로 전환했으나, 변수를 포함하지 않은 기저 모형의 AIC(359.93)·BIC(363.50)가 가장 낮아 현재 인구통계·도구 개수 변수만으로는 만족도를 강하게 설명하지 못했습니다.
+              </p>
+            </article>
+            <article class="limit-item">
+              <h3 class="limit-title">2. 향후 데이터 및 모형 개선 과제</h3>
+              <p class="limit-desc">
+                표본 규모 확대(N=330 한계 극복), 단일 분할 검증을 보완하는 교차검증(Cross-Validation), 사용 빈도·시간·유료 구독 여부 등 행동 데이터 수집, 임계값 및 클래스 가중치 조정이 필요합니다.
+              </p>
+            </article>
+          </div>
+        </div>
+
+        <!-- Interactive Confusion Matrix Viewer -->
+        <div class="matrix-card">
+          <div class="panel-header" style="padding-bottom: 0; border-bottom: none;">
+            <h3 class="section-title" style="font-size: var(--subhead-size);">테스트 오분류표 (Confusion Matrix)</h3>
+            <span class="mono-label">Test N = 66</span>
+          </div>
+          <div class="matrix-tabs" role="tablist" aria-label="오분류표 모형 선택">
+            <button type="button" id="tab-cm-logistic" class="tab-btn is-active" role="tab" aria-selected="true" onclick="switchMatrix('logistic')">로지스틱 회귀 (65.2%)</button>
+            <button type="button" id="tab-cm-tree" class="tab-btn" role="tab" aria-selected="false" onclick="switchMatrix('tree')">분류나무 depth=3 (54.5%)</button>
+          </div>
+          <div class="cm-grid" aria-live="polite">
+            <div class="cm-cell cm-head">실제 \ 예측</div>
+            <div class="cm-cell cm-head">예측: 고만족(1)</div>
+            <div class="cm-cell cm-head">예측: 일반(0)</div>
+
+            <div class="cm-cell cm-row-head">실제: 고만족(39)</div>
+            <div class="cm-cell cm-tp">
+              <span class="cm-num" id="cm-tp">35</span>
+              <span class="cm-tag">TP (정분류)</span>
+            </div>
+            <div class="cm-cell">
+              <span class="cm-num" id="cm-fn">4</span>
+              <span class="cm-tag">FN (미탐)</span>
+            </div>
+
+            <div class="cm-cell cm-row-head">실제: 일반(27)</div>
+            <div class="cm-cell">
+              <span class="cm-num" id="cm-fp">19</span>
+              <span class="cm-tag">FP (오탐)</span>
+            </div>
+            <div class="cm-cell">
+              <span class="cm-num" id="cm-tn">8</span>
+              <span class="cm-tag">TN (정분류)</span>
+            </div>
+          </div>
+          <p id="cm-summary-note" class="field-helper">
+            로지스틱 회귀는 66명 중 54명을 '고만족'으로 예측하여 민감도(89.7%)는 높으나, 실제 '일반' 학생 27명 중 19명을 고만족으로 오분류해 특이도(29.6%)가 낮게 나타났습니다.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Academic Footer -->
+    <footer class="app-footer">
+      <span>학생 AI 도구 만족도 예측 시뮬레이터 · Global AI Tools Students Use Survey (N = 330)</span>
+      <span class="mono-code">Binary Logistic Regression · Train 264 / Test 66 Stratified Split</span>
+    </footer>
+
+  </div>
+
+  <api-shim></api-shim>
+  <script>
+    // =========================================================================
+    // Model Specification (Calibrated to Empirical Study Bounds & Constraints)
+    // =========================================================================
+    const MODEL = {
+      intercept: -0.25,
+      baselineRate: 0.591,
+      clusterMin: 0.38,
+      clusterMax: 0.76,
+      gender: {
+        Female: 0.00,
+        Male: 0.30
+      },
+      continent: {
+        Asia: 0.00,
+        Africa: 0.05,
+        Europe: -0.24,
+        'North America': -0.06,
+        Oceania: -0.18,
+        'South America': 0.08
+      },
+      grade: {
+        Low: 0.00,
+        High: 0.18
+      },
+      perTool: 0.11
+    };
+
+    const PRESETS = {
+      median: { gender: 'Female', continent: 'Asia', grade: 'High', tools: 2 },
+      heavy: { gender: 'Male', continent: 'North America', grade: 'High', tools: 6 },
+      light: { gender: 'Female', continent: 'Europe', grade: 'Low', tools: 0 },
+      oceania: { gender: 'Male', continent: 'Oceania', grade: 'Low', tools: 4 }
+    };
+
+    const CONFUSION_DATA = {
+      logistic: {
+        tp: 35, fn: 4, fp: 19, tn: 8,
+        note: `로지스틱 회귀는 66명 중 54명을 '고만족'으로 예측하여 민감도(89.7%)는 높으나, 실제 '일반' 학생 27명 중 19명을 고만족으로 오분류해 특이도(29.6%)가 낮게 나타났습니다.`
+      },
+      tree: {
+        tp: 32, fn: 7, fp: 23, tn: 4,
+        note: `분류나무(max_depth=3)는 테스트 정확도 54.5%로 기준선(59.1%)보다 낮으며, 오분류(FP 23명)가 더 많아 조건 조합 탐색용 보조 도구로만 활용되었습니다.`
+      }
+    };
+
+    let appState = {
+      inputs: {
+        gender: 'Female',
+        continent: 'Asia',
+        grade: 'High',
+        tools: 2,
+        threshold: 0.50
+      },
+      applied: {
+        gender: 'Female',
+        continent: 'Asia',
+        grade: 'High',
+        tools: 2,
+        threshold: 0.50
+      },
+      activePreset: 'median',
+      activeMatrix: 'logistic',
+      history: []
+    };
+
+    // =========================================================================
+    // Core Logistic Computation
+    // =========================================================================
+    function computePrediction(params) {
+      const b0 = MODEL.intercept;
+      const bGender = MODEL.gender[params.gender] !== undefined ? MODEL.gender[params.gender] : 0;
+      const bContinent = MODEL.continent[params.continent] !== undefined ? MODEL.continent[params.continent] : 0;
+      const bGrade = MODEL.grade[params.grade] !== undefined ? MODEL.grade[params.grade] : 0;
+      const bTools = Number(params.tools) * MODEL.perTool;
+
+      const z = b0 + bGender + bContinent + bGrade + bTools;
+      const prob = 1 / (1 + Math.exp(-z));
+      const odds = Math.exp(z);
+      const isHigh = prob >= params.threshold;
+
+      return {
+        z: z,
+        prob: prob,
+        odds: odds,
+        isHigh: isHigh,
+        contributions: {
+          intercept: b0,
+          gender: bGender,
+          continent: bContinent,
+          grade: bGrade,
+          tools: bTools
+        }
+      };
+    }
+
+    // =========================================================================
+    // SVG Semicircular Gauge Geometry Helpers
+    // =========================================================================
+    function polarToCartesian(cx, cy, r, pct) {
+      // pct in [0, 1] maps from 180 deg (left) to 0 deg (right)
+      const clamped = Math.max(0, Math.min(1, pct));
+      const angleRad = Math.PI * (1 - clamped);
+      return {
+        x: cx + r * Math.cos(angleRad),
+        y: cy - r * Math.sin(angleRad)
+      };
+    }
+
+    function describeArc(cx, cy, r, startPct, endPct) {
+      const p1 = polarToCartesian(cx, cy, r, startPct);
+      const p2 = polarToCartesian(cx, cy, r, endPct);
+      if (Math.abs(endPct - startPct) < 0.001) return '';
+      return `M ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} A ${r} ${r} 0 0 1 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
+    }
+
+    function renderGauge(prob, threshold) {
+      const cx = 210, cy = 185, r = 145;
+
+      const bandEl = document.getElementById('gauge-cluster-band');
+      if (bandEl) {
+        bandEl.setAttribute('d', describeArc(cx, cy, r, MODEL.clusterMin, MODEL.clusterMax));
+      }
+
+      const arcEl = document.getElementById('gauge-value-arc');
+      if (arcEl) {
+        arcEl.setAttribute('d', describeArc(cx, cy, r, 0, prob));
+        arcEl.setAttribute('stroke', prob >= threshold ? 'var(--tertiary)' : 'var(--data-1)');
+      }
+
+      // Baseline 59.1% tick
+      const baseInner = polarToCartesian(cx, cy, r - 12, MODEL.baselineRate);
+      const baseOuter = polarToCartesian(cx, cy, r + 18, MODEL.baselineRate);
+      const baseTextPos = polarToCartesian(cx, cy, r + 30, MODEL.baselineRate);
+      const baseTick = document.getElementById('gauge-baseline-tick');
+      const baseText = document.getElementById('gauge-baseline-text');
+      if (baseTick) {
+        baseTick.setAttribute('x1', baseInner.x.toFixed(2));
+        baseTick.setAttribute('y1', baseInner.y.toFixed(2));
+        baseTick.setAttribute('x2', baseOuter.x.toFixed(2));
+        baseTick.setAttribute('y2', baseOuter.y.toFixed(2));
+      }
+      if (baseText) {
+        baseText.setAttribute('x', baseTextPos.x.toFixed(2));
+        baseText.setAttribute('y', baseTextPos.y.toFixed(2));
+      }
+
+      // Threshold tick
+      const thInner = polarToCartesian(cx, cy, r - 16, threshold);
+      const thOuter = polarToCartesian(cx, cy, r + 16, threshold);
+      const thTextPos = polarToCartesian(cx, cy, r + 28, threshold);
+      const thTick = document.getElementById('gauge-threshold-tick');
+      const thText = document.getElementById('gauge-threshold-text');
+      if (thTick) {
+        thTick.setAttribute('x1', thInner.x.toFixed(2));
+        thTick.setAttribute('y1', thInner.y.toFixed(2));
+        thTick.setAttribute('x2', thOuter.x.toFixed(2));
+        thTick.setAttribute('y2', thOuter.y.toFixed(2));
+      }
+      if (thText) {
+        thText.setAttribute('x', thTextPos.x.toFixed(2));
+        thText.setAttribute('y', thTextPos.y.toFixed(2));
+        thText.textContent = `θ ${(threshold * 100).toFixed(0)}%`;
+      }
+
+      // Needle
+      const tip = polarToCartesian(cx, cy, r - 18, prob);
+      const needle = document.getElementById('gauge-needle');
+      if (needle) {
+        needle.setAttribute('x2', tip.x.toFixed(2));
+        needle.setAttribute('y2', tip.y.toFixed(2));
+      }
+
+      const centerPct = document.getElementById('gauge-center-pct');
+      if (centerPct) {
+        centerPct.textContent = `${(prob * 100).toFixed(1)}%`;
+      }
+    }
+
+    // =========================================================================
+    // Render Prediction Output & Breakdown
+    // =========================================================================
+    function renderOutput(params, result) {
+      const pctStr = `${(result.prob * 100).toFixed(1)}%`;
+      const signZ = result.z >= 0 ? '+' : '';
+      const zStr = `${signZ}${result.z.toFixed(3)}`;
+      const deltaPct = (result.prob - MODEL.baselineRate) * 100;
+      const signDelta = deltaPct >= 0 ? '+' : '';
+
+      const profileEl = document.getElementById('applied-profile-label');
+      if (profileEl) {
+        profileEl.textContent = `${params.gender} · ${params.continent} · ${params.grade} · ${params.tools}개`;
+      }
+
+      const verdictCard = document.getElementById('verdict-card');
+      const verdictTitle = document.getElementById('verdict-title');
+      const verdictPill = document.getElementById('verdict-pill');
+      const verdictDesc = document.getElementById('verdict-desc');
+      const verdictProb = document.getElementById('verdict-prob');
+
+      if (verdictCard) {
+        verdictCard.classList.toggle('is-high', result.isHigh);
+        verdictCard.classList.toggle('is-standard', !result.isHigh);
+      }
+      if (verdictTitle) {
+        verdictTitle.textContent = result.isHigh ? '고만족' : '일반';
+      }
+      if (verdictPill) {
+        verdictPill.className = result.isHigh
+          ? 'status-pill status-pill--high'
+          : 'status-pill status-pill--standard';
+        verdictPill.textContent = result.isHigh
+          ? '유용성 중앙값(8.00점) 이상 예측'
+          : '유용성 중앙값(8.00점) 미만 예측';
+      }
+      if (verdictDesc) {
+        const threshPct = (params.threshold * 100).toFixed(0);
+        verdictDesc.textContent = result.isHigh
+          ? `추정 확률(${pctStr})이 분류 임계값(${threshPct}%) 이상이므로 '고만족' 집단으로 분류되었습니다.`
+          : `추정 확률(${pctStr})이 분류 임계값(${threshPct}%) 미만이므로 '일반' 집단으로 분류되었습니다.`;
+      }
+      if (verdictProb) {
+        verdictProb.textContent = pctStr;
+      }
+
+      const logitEl = document.getElementById('metric-logit');
+      const oddsEl = document.getElementById('metric-odds');
+      const deltaEl = document.getElementById('metric-delta');
+      if (logitEl) logitEl.textContent = zStr;
+      if (oddsEl) oddsEl.textContent = `${result.odds.toFixed(3)} : 1`;
+      if (deltaEl) deltaEl.textContent = `${signDelta}${deltaPct.toFixed(1)}%p`;
+
+      renderGauge(result.prob, params.threshold);
+
+      // Formula readout
+      const c = result.contributions;
+      const fmtSigned = (v) => `${v >= 0 ? '+ ' : '- '}${Math.abs(v).toFixed(3)}`;
+      const formulaEl = document.getElementById('logit-formula-box');
+      if (formulaEl) {
+        formulaEl.textContent = `z = ${c.intercept.toFixed(3)} ${fmtSigned(c.tools)}(AI 도구) ${fmtSigned(c.gender)}(성별) ${fmtSigned(c.grade)}(학년) ${fmtSigned(c.continent)}(대륙) = ${zStr}`;
+      }
+
+      // Feature influence breakdown bars (max magnitude scale = 0.90)
+      const maxScale = 0.90;
+      const rows = [
+        {
+          label: '총 AI 활용 개수 (Total AI Used)',
+          sub: `${params.tools}개 (p=0.148 · 경계 p=0.061)`,
+          dz: c.tools
+        },
+        {
+          label: '성별 (Gender)',
+          sub: `${params.gender} (Logistic p=0.156 · χ² p=0.024)`,
+          dz: c.gender
+        },
+        {
+          label: '대륙권 (Continent)',
+          sub: `${params.continent} (ANOVA p=0.445)`,
+          dz: c.continent
+        },
+        {
+          label: '학년 수준 (Grade Level)',
+          sub: `${params.grade} (Logistic p > 0.05)`,
+          dz: c.grade
+        },
+        {
+          label: '절편 (Intercept β₀)',
+          sub: `기준 범주(Female · Asia · Low · 0개)`,
+          dz: c.intercept
+        }
+      ];
+
+      const listEl = document.getElementById('influence-list');
+      if (listEl) {
+        listEl.innerHTML = rows.map((row) => {
+          const widthPct = Math.min(50, (Math.abs(row.dz) / maxScale) * 50);
+          let leftPct = 50;
+          let fillClass = 'inf-bar-fill--zero';
+          if (row.dz > 0.0001) {
+            leftPct = 50;
+            fillClass = 'inf-bar-fill--pos';
+          } else if (row.dz < -0.0001) {
+            leftPct = 50 - widthPct;
+            fillClass = 'inf-bar-fill--neg';
+          }
+          const dzText = `${row.dz >= 0 ? '+' : ''}${row.dz.toFixed(3)}`;
+          const orVal = Math.exp(row.dz).toFixed(2);
+          return `
+            <div class="influence-row">
+              <div>
+                <div class="inf-name">${row.label}</div>
+                <div class="inf-val-sub">${row.sub}</div>
+              </div>
+              <div class="inf-bar-track" aria-hidden="true">
+                <div class="inf-zero-line"></div>
+                <div class="inf-bar-fill ${fillClass}" style="left: ${leftPct.toFixed(1)}%; width: ${Math.max(widthPct, 1).toFixed(1)}%;"></div>
+              </div>
+              <div class="inf-numbers">
+                <div>Δz ${dzText}</div>
+                <div class="inf-val-sub">OR ${orVal}×</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    // =========================================================================
+    // Input Synchronization & Pending State
+    // =========================================================================
+    function syncUIWithInputs() {
+      const inp = appState.inputs;
+
+      const btnFemale = document.getElementById('btn-gender-female');
+      const btnMale = document.getElementById('btn-gender-male');
+      if (btnFemale) btnFemale.classList.toggle('is-active', inp.gender === 'Female');
+      if (btnMale) btnMale.classList.toggle('is-active', inp.gender === 'Male');
+
+      const selCont = document.getElementById('select-continent');
+      if (selCont) selCont.value = inp.continent;
+
+      const btnLow = document.getElementById('btn-grade-low');
+      const btnHigh = document.getElementById('btn-grade-high');
+      if (btnLow) btnLow.classList.toggle('is-active', inp.grade === 'Low');
+      if (btnHigh) btnHigh.classList.toggle('is-active', inp.grade === 'High');
+
+      const sTools = document.getElementById('slider-tools');
+      const nTools = document.getElementById('number-tools');
+      if (sTools) sTools.value = inp.tools;
+      if (nTools) nTools.value = inp.tools;
+
+      const sThresh = document.getElementById('slider-threshold');
+      const nThresh = document.getElementById('number-threshold');
+      const tSummary = document.getElementById('threshold-summary-val');
+      if (sThresh) sThresh.value = Number(inp.threshold).toFixed(2);
+      if (nThresh) nThresh.value = Number(inp.threshold).toFixed(2);
+      if (tSummary) tSummary.textContent = `θ = ${Number(inp.threshold).toFixed(2)}`;
+
+      document.querySelectorAll('.preset-btn').forEach((btn) => {
+        btn.classList.toggle('is-selected', btn.dataset.preset === appState.activePreset);
+      });
+
+      const isDirty =
+        inp.gender !== appState.applied.gender ||
+        inp.continent !== appState.applied.continent ||
+        inp.grade !== appState.applied.grade ||
+        Number(inp.tools) !== Number(appState.applied.tools) ||
+        Math.abs(Number(inp.threshold) - Number(appState.applied.threshold)) > 0.001;
+
+      const banner = document.getElementById('pending-banner');
+      if (banner) {
+        banner.classList.toggle('is-visible', isDirty);
+      }
+    }
+
+    function setGender(val) {
+      appState.inputs.gender = val;
+      appState.activePreset = '';
+      syncUIWithInputs();
+    }
+
+    function setGrade(val) {
+      appState.inputs.grade = val;
+      appState.activePreset = '';
+      syncUIWithInputs();
+    }
+
+    function onInputChange() {
+      const selCont = document.getElementById('select-continent');
+      if (selCont) appState.inputs.continent = selCont.value;
+      appState.activePreset = '';
+      syncUIWithInputs();
+    }
+
+    function syncToolsFromSlider(val) {
+      const parsed = Math.max(0, Math.min(8, Math.round(Number(val) || 0)));
+      appState.inputs.tools = parsed;
+      const nTools = document.getElementById('number-tools');
+      if (nTools) nTools.value = parsed;
+      appState.activePreset = '';
+      syncUIWithInputs();
+    }
+
+    function syncToolsFromNumber(val) {
+      const parsed = Math.max(0, Math.min(8, Math.round(Number(val) || 0)));
+      appState.inputs.tools = parsed;
+      const sTools = document.getElementById('slider-tools');
+      if (sTools) sTools.value = parsed;
+      appState.activePreset = '';
+      syncUIWithInputs();
+    }
+
+    function syncThresholdFromSlider(val) {
+      const parsed = Math.max(0.35, Math.min(0.75, Number(val) || 0.50));
+      appState.inputs.threshold = Number(parsed.toFixed(2));
+      const nThresh = document.getElementById('number-threshold');
+      if (nThresh) nThresh.value = appState.inputs.threshold.toFixed(2);
+      syncUIWithInputs();
+    }
+
+    function syncThresholdFromNumber(val) {
+      const parsed = Math.max(0.35, Math.min(0.75, Number(val) || 0.50));
+      appState.inputs.threshold = Number(parsed.toFixed(2));
+      const sThresh = document.getElementById('slider-threshold');
+      if (sThresh) sThresh.value = appState.inputs.threshold.toFixed(2);
+      syncUIWithInputs();
+    }
+
+    function applyPreset(key) {
+      const p = PRESETS[key];
+      if (!p) return;
+      appState.inputs.gender = p.gender;
+      appState.inputs.continent = p.continent;
+      appState.inputs.grade = p.grade;
+      appState.inputs.tools = p.tools;
+      appState.activePreset = key;
+      runPrediction(true);
+    }
+
+    function resetInputs() {
+      appState.inputs = {
+        gender: 'Female',
+        continent: 'Asia',
+        grade: 'High',
+        tools: 2,
+        threshold: 0.50
+      };
+      appState.activePreset = 'median';
+      runPrediction(false);
+    }
+
+    // =========================================================================
+    // Run Prediction & Persist History
+    // =========================================================================
+    function runPrediction(logToHistory) {
+      appState.applied = {
+        gender: appState.inputs.gender,
+        continent: appState.inputs.continent,
+        grade: appState.inputs.grade,
+        tools: Number(appState.inputs.tools),
+        threshold: Number(appState.inputs.threshold)
+      };
+      const result = computePrediction(appState.applied);
+      renderOutput(appState.applied, result);
+
+      if (logToHistory) {
+        const entry = {
+          id: appState.history.length + 1,
+          gender: appState.applied.gender,
+          continent: appState.applied.continent,
+          grade: appState.applied.grade,
+          tools: appState.applied.tools,
+          z: Number(result.z.toFixed(3)),
+          prob: Number((result.prob * 100).toFixed(1)),
+          threshold: Number((appState.applied.threshold * 100).toFixed(0)),
+          status: result.isHigh ? '고만족' : '일반'
+        };
+        appState.history.unshift(entry);
+        if (appState.history.length > 20) {
+          appState.history = appState.history.slice(0, 20);
+        }
+      }
+
+      renderHistoryTable();
+      syncUIWithInputs();
+      persistState();
+    }
+
+    function renderHistoryTable() {
+      const tbody = document.getElementById('history-tbody');
+      if (!tbody) return;
+      if (appState.history.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="9" style="text-align: center; color: var(--on-surface-variant); padding: var(--space-lg);">
+              아직 기록된 예측 시나리오가 없습니다. 상단 입력 조건을 조정한 뒤 <strong>예측 실행</strong> 버튼을 눌러 비교 로그를 추가하세요.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+      tbody.innerHTML = appState.history.map((row, idx) => {
+        const pillClass = row.status === '고만족' ? 'status-pill--high' : 'status-pill--standard';
+        const signZ = row.z >= 0 ? '+' : '';
+        return `
+          <tr>
+            <td class="mono-code">${appState.history.length - idx}</td>
+            <td>${row.gender}</td>
+            <td>${row.continent}</td>
+            <td>${row.grade}</td>
+            <td class="num-col">${row.tools}</td>
+            <td class="num-col">${signZ}${row.z.toFixed(3)}</td>
+            <td class="num-col"><strong>${row.prob.toFixed(1)}%</strong></td>
+            <td class="num-col">${row.threshold}%</td>
+            <td><span class="status-pill ${pillClass}">${row.status}</span></td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function clearHistory(btn) {
+      if (!btn) return;
+      if (btn.dataset.armed !== 'true') {
+        btn.dataset.armed = 'true';
+        const span = btn.querySelector('span');
+        if (span) span.textContent = '한 번 더 클릭하여 비우기';
+        setTimeout(() => {
+          btn.dataset.armed = 'false';
+          const s = btn.querySelector('span');
+          if (s) s.textContent = '로그 비우기';
+        }, 3000);
+        return;
+      }
+      btn.dataset.armed = 'false';
+      const span = btn.querySelector('span');
+      if (span) span.textContent = '로그 비우기';
+      appState.history = [];
+      renderHistoryTable();
+      persistState();
+    }
+
+    function exportHistoryCSV() {
+      const header = ['Run,Gender,Continent,Grade_Level,Total_AI_Used,Logit_z,Probability_Pct,Threshold_Pct,Predicted_Status'];
+      const rows = appState.history.map((r, i) =>
+        `${appState.history.length - i},${r.gender},"${r.continent}",${r.grade},${r.tools},${r.z},${r.prob},${r.threshold},${r.status}`
+      );
+      const csv = header.concat(rows).join('\n');
+      if (window.notebookAppApi && typeof window.notebookAppApi.triggerFileDownload === 'function') {
+        window.notebookAppApi.triggerFileDownload({
+          content: csv,
+          contentType: 'text/csv',
+          encoding: 'UTF-8',
+          filename: 'student_ai_satisfaction_predictions.csv'
+        });
+      }
+    }
+
+    // =========================================================================
+    // Confusion Matrix Switcher
+    // =========================================================================
+    function switchMatrix(modelKey) {
+      const data = CONFUSION_DATA[modelKey];
+      if (!data) return;
+      appState.activeMatrix = modelKey;
+
+      const tLog = document.getElementById('tab-cm-logistic');
+      const tTree = document.getElementById('tab-cm-tree');
+      if (tLog) {
+        tLog.classList.toggle('is-active', modelKey === 'logistic');
+        tLog.setAttribute('aria-selected', modelKey === 'logistic' ? 'true' : 'false');
+      }
+      if (tTree) {
+        tTree.classList.toggle('is-active', modelKey === 'tree');
+        tTree.setAttribute('aria-selected', modelKey === 'tree' ? 'true' : 'false');
+      }
+
+      const tp = document.getElementById('cm-tp');
+      const fn = document.getElementById('cm-fn');
+      const fp = document.getElementById('cm-fp');
+      const tn = document.getElementById('cm-tn');
+      const note = document.getElementById('cm-summary-note');
+      if (tp) tp.textContent = data.tp;
+      if (fn) fn.textContent = data.fn;
+      if (fp) fp.textContent = data.fp;
+      if (tn) tn.textContent = data.tn;
+      if (note) note.textContent = data.note;
+
+      persistState();
+    }
+
+    // =========================================================================
+    // Notebook App State Persistence & Initialization
+    // =========================================================================
+    async function persistState() {
+      if (window.notebookAppApi && typeof window.notebookAppApi.setAppState === 'function') {
+        try {
+          await window.notebookAppApi.setAppState({
+            inputs: appState.inputs,
+            applied: appState.applied,
+            activePreset: appState.activePreset,
+            activeMatrix: appState.activeMatrix,
+            history: appState.history
+          });
+        } catch (e) {
+          // Graceful no-op outside host
+        }
+      }
+    }
+
+    async function initApp() {
+      if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+      }
+
+      if (window.notebookAppApi && typeof window.notebookAppApi.getAppState === 'function') {
+        try {
+          const saved = await window.notebookAppApi.getAppState();
+          if (saved && typeof saved === 'object') {
+            if (saved.inputs) appState.inputs = Object.assign({}, appState.inputs, saved.inputs);
+            if (saved.applied) appState.applied = Object.assign({}, appState.applied, saved.applied);
+            if (typeof saved.activePreset === 'string') appState.activePreset = saved.activePreset;
+            if (typeof saved.activeMatrix === 'string') appState.activeMatrix = saved.activeMatrix;
+            if (Array.isArray(saved.history)) appState.history = saved.history;
+          }
+        } catch (e) {
+          // Proceed with reference defaults
+        }
+      }
+
+      const initialResult = computePrediction(appState.applied);
+      renderOutput(appState.applied, initialResult);
+      renderHistoryTable();
+      switchMatrix(appState.activeMatrix);
+      syncUIWithInputs();
+
+      if (window.notebookAppApi && typeof window.notebookAppApi.notifyAppReady === 'function') {
+        window.notebookAppApi.notifyAppReady();
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>
